@@ -405,8 +405,12 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
     audio_filepath = os.path.join(output_dir, 'audio', media_filename + '.' + audio_format)
     video_page_url = 'https://www.youtube.com/watch?v={}'.format(ytid)
 
-    # Get the direct URLs to the videos with best audio and with best video (with audio)
+    # If the output file already exists, just return
+    if os.path.isfile(audio_filepath):
+        LOGGER.info('Already exists: {} ({} - {})'.format(ytid, ts_start, ts_end))
+        return video_filepath, audio_filepath
 
+    # Get the direct URLs to the videos with best audio and with best video (with audio)
     video = pafy.new(video_page_url)
     video_duration = video.length
     end_past_video_end = False
