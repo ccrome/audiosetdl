@@ -193,11 +193,15 @@ def parse_arguments():
                         default=False,
                         help='Prints verbose info to stdout')
 
+    parser.add_argument('-ao',
+                        '--audio-only',
+                        action='store_true',
+                        help="Specify to only download audio files, no video.")
+
     parser.add_argument('data_dir',
                         action='store',
                         type=str,
                         help='Path to directory where AudioSet data will be stored')
-
 
     return vars(parser.parse_args())
 
@@ -311,6 +315,7 @@ def ffmpeg(ffmpeg_path, input_path, output_path, input_args=None,
 
 
 def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_path,
+                      audio_only,
                       audio_codec='flac', audio_format='flac',
                       audio_sample_rate=48000, audio_bit_depth=16,
                       video_codec='h264', video_format='mp4',
@@ -379,7 +384,8 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
         num_retries:        Number of attempts to download and process an audio
                             or video file with ffmpeg
                             (Type: int)
-
+        audio_only:         set to true to only download audio
+                            (Type: int)
 
     Returns:
         video_filepath:  Filepath to video file
@@ -451,7 +457,10 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
            num_retries=num_retries, validation_callback=validate_audio,
            validation_args={'audio_info': audio_info,
                             'end_past_video_end': end_past_video_end})
-
+    if audio_only:
+        LOGGER.info('Downloaded video {} ({} - {})'.format(ytid, ts_start, ts_end))
+        return video_filepath, audio_filepath
+        
     if video_mode != 'bestvideowithaudio':
         # Download the video
         video_input_args = ['-n', '-ss', str(ts_start)]
@@ -520,7 +529,7 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
 
 
 def segment_mp_worker(ytid, ts_start, ts_end, data_dir, ffmpeg_path,
-                      ffprobe_path, **ffmpeg_cfg):
+                      ffprobe_path, audio_only, **ffmpeg_cfg):
     """
     Pool worker that downloads video segments.o
 
@@ -556,7 +565,7 @@ def segment_mp_worker(ytid, ts_start, ts_end, data_dir, ffmpeg_path,
     # Download the video
     try:
         download_yt_video(ytid, ts_start, ts_end, data_dir, ffmpeg_path,
-                          ffprobe_path, **ffmpeg_cfg)
+                          ffprobe_path, audio_only, **ffmpeg_cfg)
     except SubprocessError as e:
         err_msg = 'Error while downloading video {}: {}; {}'.format(ytid, e, tb.format_exc())
         LOGGER.error(err_msg)
@@ -623,7 +632,7 @@ def download_subset_file(subset_url, dataset_dir):
     return subset_path
 
 
-def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path,
+def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                            num_workers, **ffmpeg_cfg):
     """
     Download subset segment file and videos
@@ -673,7 +682,7 @@ def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path,
                     LOGGER.info(info_msg.format(ytid, ts_start, ts_end))
                     continue
 
-                worker_args = [ytid, ts_start, ts_end, data_dir, ffmpeg_path, ffprobe_path]
+                worker_args = [ytid, ts_start, ts_end, data_dir, ffmpeg_path, ffprobe_path, audio_only]
                 pool.apply_async(partial(segment_mp_worker, **ffmpeg_cfg), worker_args)
                 # Run serially
                 #segment_mp_worker(*worker_args, **ffmpeg_cfg)
@@ -793,7 +802,7 @@ def download_random_subset_files(subset_url, dataset_dir, ffmpeg_path, ffprobe_p
     LOGGER.info('Finished download jobs for subset "{}"'.format(subset_name))
 
 
-def download_subset(subset_path, dataset_dir, ffmpeg_path, ffprobe_path,
+def download_subset(subset_path, dataset_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, **ffmpeg_cfg):
     """
     Download all files for a subset, including the segment file, and the audio and video files.
@@ -828,11 +837,11 @@ def download_subset(subset_path, dataset_dir, ffmpeg_path, ffprobe_path,
     subset_name = get_subset_name(subset_path)
     data_dir = init_subset_data_dir(dataset_dir, subset_name)
 
-    download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path,
+    download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                            num_workers, **ffmpeg_cfg)
 
 
-def download_audioset(data_dir, ffmpeg_path, ffprobe_path, eval_segments_path,
+def download_audioset(data_dir, ffmpeg_path, ffprobe_path, audio_only, eval_segments_path,
                       balanced_train_segments_path, unbalanced_train_segments_path,
                       disable_logging=False, verbose=False, num_workers=4,
                       log_path=None, **ffmpeg_cfg):
@@ -885,11 +894,11 @@ def download_audioset(data_dir, ffmpeg_path, ffprobe_path, eval_segments_path,
     multiprocessing_logging.install_mp_handler()
     LOGGER.debug('Initialized logging.')
 
-    download_subset(eval_segments_path, data_dir, ffmpeg_path, ffprobe_path,
+    download_subset(eval_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, **ffmpeg_cfg)
-    download_subset(balanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path,
+    download_subset(balanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, **ffmpeg_cfg)
-    download_subset(unbalanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path,
+    download_subset(unbalanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, **ffmpeg_cfg)
 
 
