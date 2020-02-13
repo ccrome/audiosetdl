@@ -61,6 +61,12 @@ def parse_arguments():
                         default='./bin/ffmpeg/ffprobe',
                         help='Path to ffprobe executable')
 
+    parser.add_argument('-sw',
+                        '--startwith',
+                        type=str,
+                        default=None,
+                        help='Start downloading at this youtube ID.  Skip all previous')
+    
     parser.add_argument('-e',
                         '--eval',
                         dest='eval_segments_path',
@@ -637,7 +643,7 @@ def download_subset_file(subset_url, dataset_dir):
 
 
 def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
-                           num_workers, **ffmpeg_cfg):
+                           num_workers, startwith, **ffmpeg_cfg):
     """
     Download subset segment file and videos
 
@@ -663,8 +669,10 @@ def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, aud
                        (Type: dict[str, *])
     """
     subset_name = get_subset_name(subset_path)
-
     LOGGER.info('Starting download jobs for subset "{}"'.format(subset_name))
+    started = True
+    if startwith is not None:
+        started = False
     with open(subset_path, 'r') as f:
         subset_data = csv.reader(f)
 
@@ -676,7 +684,11 @@ def download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, aud
                 if row[0][0] == '#':
                     continue
                 ytid, ts_start, ts_end = row[0], float(row[1]), float(row[2])
-
+                if not started:
+                    if ytid == startwith:
+                        started = True
+                    else:
+                        continue
                 # Skip files that already have been downloaded
                 media_filename = get_media_filename(ytid, ts_start, ts_end)
                 video_filepath = os.path.join(data_dir, 'video', media_filename + '.' + ffmpeg_cfg.get('video_format', 'mp4'))
@@ -807,7 +819,7 @@ def download_random_subset_files(subset_url, dataset_dir, ffmpeg_path, ffprobe_p
 
 
 def download_subset(subset_path, dataset_dir, ffmpeg_path, ffprobe_path, audio_only,
-                    num_workers, **ffmpeg_cfg):
+                    num_workers, startwith, **ffmpeg_cfg):
     """
     Download all files for a subset, including the segment file, and the audio and video files.
 
@@ -842,11 +854,12 @@ def download_subset(subset_path, dataset_dir, ffmpeg_path, ffprobe_path, audio_o
     data_dir = init_subset_data_dir(dataset_dir, subset_name)
 
     download_subset_videos(subset_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
-                           num_workers, **ffmpeg_cfg)
-
+                           num_workers, startwith, **ffmpeg_cfg)
+    
 
 def download_audioset(data_dir, ffmpeg_path, ffprobe_path, audio_only, eval_segments_path,
                       balanced_train_segments_path, unbalanced_train_segments_path,
+                      startwith=None,
                       disable_logging=False, verbose=False, num_workers=4,
                       log_path=None, **ffmpeg_cfg):
     """
@@ -903,7 +916,7 @@ def download_audioset(data_dir, ffmpeg_path, ffprobe_path, audio_only, eval_segm
     download_subset(balanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, **ffmpeg_cfg)
     download_subset(unbalanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
-                    num_workers, **ffmpeg_cfg)
+                    num_workers, startwith, **ffmpeg_cfg)
 
 
 if __name__ == '__main__':
