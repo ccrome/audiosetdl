@@ -407,7 +407,7 @@ def download_yt_video(ytid, ts_start, ts_end, output_dir, ffmpeg_path, ffprobe_p
 
     # If the output file already exists, just return
     if os.path.isfile(audio_filepath):
-        LOGGER.info('Already exists: {} ({} - {})'.format(ytid, ts_start, ts_end))
+        #LOGGER.debug('Already exists: {} ({} - {})'.format(ytid, ts_start, ts_end))
         return video_filepath, audio_filepath
 
     # Get the direct URLs to the videos with best audio and with best video (with audio)
