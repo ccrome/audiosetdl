@@ -912,9 +912,9 @@ def download_audioset(data_dir, ffmpeg_path, ffprobe_path, audio_only, eval_segm
     LOGGER.debug('Initialized logging.')
 
     download_subset(eval_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
-                    num_workers, **ffmpeg_cfg)
+                    num_workers, startwith, **ffmpeg_cfg)
     download_subset(balanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
-                    num_workers, **ffmpeg_cfg)
+                    num_workers, startwith, **ffmpeg_cfg)
     download_subset(unbalanced_train_segments_path, data_dir, ffmpeg_path, ffprobe_path, audio_only,
                     num_workers, startwith, **ffmpeg_cfg)
 
